@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autophagy Boardgame Online</title>
+  <style>
+    :root {
+      --bg: #0b132b;
+      --card-bg: #1c2541;
+      --accent: #6fffe9;
+      --red: #8b0000;
+      --orange: #d97706;
+      --green: #15803d;
+      --blue: #1d4ed8;
+      --purple: #6d28d9;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: #ffffff;
+      margin: 0;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 { margin-bottom: 5px; color: var(--accent); }
+    .sub { color: #a5b4fc; font-size: 0.9rem; margin-bottom: 15px; }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 15px;
+      border: 1px solid #3a506b;
+    }
+
+    .meter-bar {
+      height: 20px;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+      transition: width 0.3s;
+    }
+
+    .timer {
+      font-size: 2rem;
+      font-weight: bold;
+      text-align: center;
+      color: #ef4444;
+      font-family: monospace;
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-red { background: var(--red); }
+    .btn-green { background: var(--green); }
+    .btn-blue { background: var(--blue); }
+    .btn-purple { background: var(--purple); }
+
+    .card-display {
+      background: #0b132b;
+      border: 2px solid #3a506b;
+      border-radius: 10px;
+      padding: 15px;
+      min-height: 180px;
+      margin-top: 10px;
+    }
+
+    .log-box {
+      grid-column: span 2;
+      background: #000;
+      color: #4ade80;
+      font-family: monospace;
+      padding: 10px;
+      height: 100px;
+      overflow-y: auto;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+
+    .zone-status {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .zone-item {
+      background: #0b132b;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      border: 1px solid #3a506b;
+    }
+    .cleared {
+      border-color: #22c55e;
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    .discussion-box {
+      background: #1e293b;
+      border-left: 4px solid var(--accent);
+      padding: 10px;
+      margin-top: 10px;
+      font-style: italic;
+      color: #cbd5e1;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    .badge-warning { background: #b45309; color: #fff; }
+    .badge-info { background: #1d4ed8; color: #fff; }
+
+    .essay-btn-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .essay-btn-container button {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>AUTOPHAGY BOARDGAME ONLINE</h1>
+  <div class="sub">Hệ thống mô phỏng hỗ trợ Trải nghiệm & Thuyết trình KHKT</div>
+
+  <div class="main-layout">
+    <!-- Panel 1: Stress & Thời gian từng khu vực -->
+    <div class="panel">
+      <h3>📊 THANG ĐO STRESS (TỐI ĐA 5 NẤC)</h3>
+      <div>Mức Stress hiện tại: <span id="stress-num">0</span>/5</div>
+      <div class="meter-bar"><div class="meter-fill" id="meter-fill"></div></div>
+      <div class="timer" id="timer">01:00</div>
+      <div style="font-size: 0.8rem; color: #a5b4fc; text-align: center; margin-top: 4px;">(⏱️ Thời gian 1 phút cho mỗi khu vực)</div>
+      
+      <div id="debuff-container" style="text-align: center;"></div>
+
+      <div style="margin-top: 10px; text-align: center;">
+        <button class="btn-green" id="btn-start" onclick="startTimer()" style="width: 100%;">▶ BẮT ĐẦU TRÒ CHƠI</button>
+      </div>
+    </div>
+
+    <!-- Panel 2: 4 Khu vực Độc tố -->
+    <div class="panel">
+      <h3>🟠 4 KHU VỰC ĐỘC TỐ (BÀN CỜ)</h3>
+      <div class="zone-status">
+        <div class="zone-item" id="z0">🍔 Ngoại hình: 🔒 Úp</div>
+        <div class="zone-item" id="z1">📖 Năng lực: 🔒 Úp</div>
+        <div class="zone-item" id="z2">🏀 Khả năng: 🔒 Úp</div>
+        <div class="zone-item" id="z3">👕 Gia cảnh: 🔒 Úp</div>
+      </div>
+    </div>
+
+    <!-- Panel 3: Kho Thẻ Bài & Hành Động -->
+    <div class="panel" style="grid-column: span 2;">
+      <h3>🃏 KHO THẺ BÀI & HÀNH ĐỘNG</h3>
+      <div class="btn-grid">
+        <button class="btn-red" id="btn-challenge" onclick="startRound()" disabled>1. Rút Thử Thách (🔴)</button>
+        <button class="btn-purple" id="btn-dice" onclick="rollDice()" disabled>2. Đổ Xúc Xắc (🎲 50/50)</button>
+        <button class="btn-blue" id="btn-enzyme" onclick="revealEnzyme()">Lật Enzyme (🔵)</button>
+      </div>
+
+      <div class="card-display" id="card-box">
+        <h4 id="card-title">Sẵn sàng</h4>
+        <p id="card-body">Nhấn "▶ BẮT ĐẦU TRÒ CHƠI" để bắt đầu ván đấu!</p>
+        <div id="card-answers" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <div class="log-box" id="log-box">> Trò chơi sẵn sàng. Bấm nút Bắt đầu để chơi!</div>
+  </div>
+
+  <script>
+    let stress = 0;
+    let timer = null;
+    let timeLeft = 60;
+    let currentZoneIndex = 0;
+    let currentStep = 0; // 0: Trắc nghiệm (60%), 1: Tự luận (40%)
+    let roundData = null;
+
+    // Trạng thái thẻ Enzyme
+    let energyCardBlocked = false;
+    let eyeEnzymeActive = false;
+    let chatEnzymeActive = false; // Trạng thái kích hoạt Thẻ Bóng trò chuyện
+
+    // BỘ BÀI ENZYME (Mỗi thẻ chỉ được lật 1 lần, lật xong loại khỏi ván cờ)
+    let enzymeDeck = [
+      { id: "eye", t: "👁️ Con mắt", m: "Loại bỏ 1 đáp án sai trong gói thử thách / Trừ 30 giây thời gian của lượt chơi hiện tại." },
+      { id: "chat", t: "💬 Bóng trò chuyện", m: "Chuyển câu hỏi thử thách thành câu hỏi chia sẻ trải nghiệm cá nhân của bản thân." },
+      { id: "bell", t: "🔔 Chuông báo", m: "Trong vòng 1 phút, nếu không hoàn thành lượt chơi, người chơi sẽ mất 1 lượt gieo xúc xắc ở lượt tiếp theo." },
+      { id: "cards", t: "🎴 Hai chiếc thẻ", m: "Người chơi bị mất 1 lá năng lượng (Lượt gieo xúc xắc sau nếu ra chẵn cũng không được dùng Thẻ Năng Lượng)." }
+    ];
+
+    const roundList = [
+      {
+        topic: "🍔 Ngoại hình",
+        zoneId: "z0",
+        toxicMessage: "Vẻ đẹp thật sự không đến từ nhận xét của người khác mà đến từ sức khỏe của bản thân.",
+        mcq: { 
+          q: "[Câu 1/2 - Trắc nghiệm (60%)] Quá trình Autophagy kết hợp luyện tập khoa học giúp xử lý độc tố tâm lý & cơ thể như thế nào khi bị nhận xét về ngoại hình?", 
+          a: [
+            "Dọn dẹp tế bào hư hỏng, tái tạo năng lượng & bảo vệ sức khỏe bản thân", 
+            "Thiêu hủy cơ bắp khiến cơ thể suy kiệt và suy sụp tinh thần", 
+            "Âm thầm nhịn ăn bỏ học và cô lập bản thân"
+          ], 
+          c: 0 
+        },
+        essay: "[Câu 2/2 - Tự luận Thảo luận (40%)] Nhóm hãy cùng thảo luận: Việc thức khuya và ăn uống không lành mạnh ảnh hưởng thế nào đến cơ chế Autophagy của tế bào và tâm trạng hàng ngày?"
+      },
+      {
+        topic: "📖 Năng lực",
+        zoneId: "z1",
+        toxicMessage: "Năng lực thực sự không chỉ thể hiện qua điểm số mà qua sự cần cù và bản lĩnh vượt khó.",
+        mcq: { 
+          q: "[Câu 1/2 - Trắc nghiệm (60%)] Khi gặp áp lực điểm số và bị chê bai, cách xử lý nào đúng nhất về cả mặt sinh học lẫn tâm lý?", 
+          a: [
+            "Đánh giá sự tiến bộ bản thân, nghỉ ngơi hợp lý để giảm Cortisol và điều chỉnh phương pháp học", 
+            "Thức khuya học dồn dập khiến hormone stress Cortisol tăng cao gây suy giảm trí nhớ", 
+            "Đổ lỗi cho đề thi quá khó và oán trách thầy cô"
+          ], 
+          c: 0 
+        },
+        essay: "[Câu 2/2 - Tự luận Thảo luận (40%)] Nhóm hãy thảo luận: Khi gặp áp lực học tập lớn, cơ thể bạn có những biểu hiện sinh học gì (mệt mỏi, đau đầu...) và nhóm đề xuất giải pháp nào?"
+      },
+      {
+        topic: "🏀 Khả năng",
+        zoneId: "z2",
+        toxicMessage: "Giá trị thật sự không nằm ở việc luôn chiến thắng mà là quá trình nỗ lực rèn luyện.",
+        mcq: { 
+          q: "[Câu 1/2 - Trắc nghiệm (60%)] Vận động thể thao hợp lý giúp ích gì cho no brain và cơ thể khi gặp thất bại?", 
+          a: [
+            "Tiết Endorphin giúp giải tỏa căng thẳng và kích thích Autophagy dọn dẹp tế bào mệt mỏi", 
+            "Tích tụ thêm Axít Lactic khiến tinh thần trở nên tiêu cực hơn", 
+            "Gây tổn thương tế bào vĩnh viễn không thể phục hồi"
+          ], 
+          c: 0 
+        },
+        essay: "[Câu 2/2 - Tự luận Thảo luận (40%)] Nhóm hãy chia sẻ: Việc vận động thể thao giúp kích thích cơ chế Autophagy dọn dẹp tế bào mệt mỏi như thế nào sau những giờ học căng thẳng?"
+      },
+      {
+        topic: "👕 Gia cảnh",
+        zoneId: "z3",
+        toxicMessage: "Vạch xuất phát không quyết định giá trị con người, quan trọng là nỗ lực vươn lên.",
+        mcq: { 
+          q: "[Câu 1/2 - Trắc nghiệm (60%)] Để duy trì cơ thể khỏe mạnh và tinh thần tích cực trước hoàn cảnh khó khăn, giải pháp lâu dài là gì?", 
+          a: [
+            "Rèn luyện lối sống, dinh dưỡng lành mạnh và biến áp lực thành động lực phấn đấu", 
+            "Lệ thuộc hoàn toàn vào các loại thực phẩm bổ sung đắt tiền", 
+            "Tự ti xa lánh bạn bè và oán trách cha mẹ"
+          ], 
+          c: 0 
+        },
+        essay: "[Câu 2/2 - Tự luận Thảo luận (40%)] Nhóm hãy thảo luận: Tình cảm gia đình và sự thấu hiểu từ bạn bè có tác dụng như thế nào trong việc giảm tiết hormone stress Cortisol?"
+      }
+    ];
+
+    function log(msg) {
+      const b = document.getElementById('log-box');
+      b.innerHTML = `> ${msg}<br>` + b.innerHTML;
+    }
+
+    function addStress(v) {
+      stress = Math.max(0, Math.min(5, stress + v));
+      document.getElementById('stress-num').innerText = stress;
+      document.getElementById('meter-fill').style.width = (stress * 20) + '%';
+      if (stress >= 5) {
+        log("💥 STRESS ĐẠT NẤC 5 TỐI ĐA - KHỦNG HOẢNG MÃN TÍNH!");
+        alert("GAME OVER! Mức Stress đã vượt quá 5 nấc!");
+      }
+    }
+
+    function resetTimerForZone() {
+      timeLeft = 60;
+      document.getElementById('timer').innerText = "01:00";
+    }
+
+    function startTimer() {
+      if (timer) return;
+      document.getElementById('btn-start').disabled = true;
+      document.getElementById('btn-challenge').disabled = false;
+      log("⏰ Bắt đầu thời gian 1 phút cho khu vực đầu tiên!");
+      
+      timer = setInterval(() => {
+        timeLeft--;
+        let m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+        let s = String(timeLeft % 60).padStart(2, '0');
+        document.getElementById('timer').innerText = `${m}:${s}`;
+        
+        if (timeLeft <= 0) {
+          log("⏰ Hết giờ 1 phút! Tăng +1 nấc Stress!");
+          addStress(1);
+          resetTimerForZone();
+        }
+      }, 1000);
+    }
+
+    function startRound() {
+      if (currentZoneIndex >= roundList.length) {
+        alert("Bạn đã hoàn thành tất cả 4 khu vực trên bàn cờ!");
+        return;
+      }
+      resetTimerForZone();
+      roundData = roundList[currentZoneIndex];
+      currentStep = 0;
+      chatEnzymeActive = false; // Reset hiệu ứng bóng trò chuyện
+      document.getElementById('btn-challenge').disabled = true;
+      showQuestion();
+    }
+
+    function showQuestion() {
+      if (!roundData) return;
+
+      // NẾU KÍCH HOẠT THẺ BÓNG TRÒ CHUYỆN -> CHUYỂN NGAY THÀNH CHIA SẺ TRẢI NGHIỆM CÁ NHÂN
+      if (chatEnzymeActive) {
+        document.getElementById('card-title').innerText = `💬 HIỆU ỨNG BÓNG TRÒ CHUYỆN: CHIA SẺ TRẢI NGHIỆM`;
+        document.getElementById('card-body').innerText = `[Khu vực ${roundData.topic}] Hãy mở lòng chia sẻ một trải nghiệm hoặc cảm xúc cá nhân của bạn liên quan đến chủ đề này thay cho việc trả lời câu hỏi!`;
+        document.getElementById('card-answers').innerHTML = `
+          <div class="discussion-box">💡 Hãy thoải mái chia sẻ trải nghiệm với nhóm. Sau khi chia sẻ xong, hãy đánh giá kết quả:</div>
+          <div class="essay-btn-container">
+            <button class="btn-green" onclick="submitEssayResult(true)">✅ ĐẠT (Đã chia sẻ chân thành)</button>
+            <button class="btn-red" onclick="submitEssayResult(false)">❌ CHƯA ĐẠT (Phạt +1 Stress)</button>
+          </div>
+        `;
+        return;
+      }
+
+      if (currentStep === 0) {
+        // CÂU 1: TRẮC NGHIỆM (60%)
+        document.getElementById('card-title').innerText = `🔴 KHU VỰC: ${roundData.topic}`;
+        document.getElementById('card-body').innerText = roundData.mcq.q;
+        
+        let html = "";
+        roundData.mcq.a.forEach((opt, idx) => {
+          if (eyeEnzymeActive && idx === roundData.mcq.a.length - 1 && idx !== roundData.mcq.c) {
+            html += `<button style="display:block; width:100%; margin:6px 0; background:#1e293b; color:#64748b; text-decoration:line-through;" disabled>${opt} (Đã bị Enzyme Con mắt loại bỏ)</button>`;
+          } else {
+            html += `<button style="display:block; width:100%; margin:6px 0; background:#334155; text-align:left;" onclick="checkMcqAnswer(${idx === roundData.mcq.c})">${opt}</button>`;
+          }
+        });
+        document.getElementById('card-answers').innerHTML = html;
+
+      } else if (currentStep === 1) {
+        // CÂU 2: TỰ LUẬN (40%) VỚI 2 LỰA CHỌN ĐẠT / CHƯA ĐẠT
+        document.getElementById('card-title').innerText = `🗣️ CÂU 2/2: TỰ LUẬN THẢO LUẬN NHÓM (40%)`;
+        document.getElementById('card-body').innerText = roundData.essay;
+        document.getElementById('card-answers').innerHTML = `
+          <div class="discussion-box">💡 Hãy thảo luận cùng các thành viên. Sau khi trình bày/trả lời xong, hãy chọn kết quả đánh giá:</div>
+          <div class="essay-btn-container">
+            <button class="btn-green" onclick="submitEssayResult(true)">✅ ĐẠT (Thảo luận sâu & chính xác)</button>
+            <button class="btn-red" onclick="submitEssayResult(false)">❌ CHƯA ĐẠT (Phạt +1 Stress)</button>
+          </div>
+        `;
+      }
+    }
+
+    function checkMcqAnswer(isCorrect) {
+      if (isCorrect) {
+        log("✅ Trả lời ĐÚNG câu trắc nghiệm!");
+        currentStep = 1;
+        showQuestion();
+      } else {
+        log("❌ Trả lời SAI câu trắc nghiệm! Bị phạt +1 nấc Stress.");
+        addStress(1);
+      }
+    }
+
+    function submitEssayResult(isPassed) {
+      if (isPassed) {
+        log("🗣️ Hoàn thành tốt lượt thử thách/chia sẻ! Hoàn thành khu vực!");
+        finishChallengeRound();
+      } else {
+        log("❌ Phần thảo luận/chia sẻ CHƯA ĐẠT! Phạt +1 nấc Stress.");
+        addStress(1);
+        alert("Chưa đạt yêu cầu! Nhóm bị tăng 1 nấc Stress. Hãy trao đổi thêm và chọn 'ĐẠT' khi hoàn thành!");
+      }
+    }
+
+    function finishChallengeRound() {
+      log(`🎉 CHÚC MỪNG! Giải mã hoàn tất Khu vực ${roundData.topic}!`);
+      
+      document.getElementById('btn-enzyme').disabled = false;
+      eyeEnzymeActive = false;
+      chatEnzymeActive = false;
+
+      const zElem = document.getElementById(roundData.zoneId);
+      zElem.classList.add('cleared');
+      zElem.innerText = `${roundData.topic}: 🔓 ĐÃ LẬT`;
+
+      document.getElementById('card-title').innerText = `🟠 HOÀN THÀNH KHU VỰC: ${roundData.topic}`;
+      document.getElementById('card-body').innerText = `Thông điệp Độc Tố: "${roundData.toxicMessage}"\n\n👉 Bạn muốn thử vận may ĐỔ XÚC XẮC (50/50 cơ hội nhận Thẻ Năng Lượng giảm Stress) hay BỎ QUA ĐỂ ĐI TIẾP?`;
+      
+      document.getElementById('card-answers').innerHTML = `
+        <button class="btn-purple" style="width:100%; margin:4px 0;" onclick="enableDiceOption()">🎲 Đổ Xúc Xắc (50/50 Cơ Hội Giảm Stress)</button>
+        <button class="btn-green" style="width:100%; margin:4px 0;" onclick="skipDiceAndNext()">⏭️ Bỏ Qua & Chuyển Sang Khu Vực Tiếp Theo</button>
+      `;
+    }
+
+    function enableDiceOption() {
+      document.getElementById('btn-dice').disabled = false;
+      document.getElementById('card-body').innerText = `Nhấn nút "2. Đổ Xúc Xắc (🎲 50/50)" ở phía trên để quay số!`;
+      document.getElementById('card-answers').innerHTML = "";
+    }
+
+    function rollDice() {
+      document.getElementById('btn-dice').disabled = true;
+      
+      const dice = Math.floor(Math.random() * 6) + 1;
+      log(`🎲 Bạn đổ xúc xắc ra: ${dice}`);
+
+      if (dice % 2 === 0) {
+        if (energyCardBlocked) {
+          log(`🟢 SỐ CHẮN (${dice})! Bạn nhận 1 Thẻ Năng Lượng nhưng do hiệu ứng "Hai chiếc thẻ", lá bài lập tức bị tiêu hủy mà không được giảm Stress!`);
+          alert(`Đổ ra ${dice} (Số chẵn)! Thẻ Năng lượng thu được đã bị tiêu hủy do hiệu ứng phạt trước đó.`);
+          energyCardBlocked = false;
+          updateDebuffUI();
+        } else {
+          addStress(-1);
+          log(`🟢 SỐ CHẮN (${dice})! Nhận 1 Thẻ Năng Lượng & Tiêu thụ ngay lập tức: Giảm 1 nấc Stress!`);
+          alert(`Đổ ra ${dice} (Số chẵn - 50% Thắng)! Bạn nhận & sử dụng ngay 1 Thẻ Năng Lượng giúp giảm 1 nấc Stress!`);
+        }
+      } else {
+        addStress(1);
+        log(`🔴 SỐ LẺ (${dice})! Thất bại: Bị phạt +1 nấc Stress!`);
+        alert(`Đổ ra ${dice} (Số lẻ - 50% Thua)! Thử thách thất bại, bị tăng 1 nấc Stress!`);
+      }
+
+      nextZone();
+    }
+
+    function skipDiceAndNext() {
+      log(`⏭️ Người chơi chọn Bỏ qua xúc xắc để an toàn đi tiếp.`);
+      nextZone();
+    }
+
+    function nextZone() {
+      currentZoneIndex++;
+      if (currentZoneIndex < roundList.length) {
+        document.getElementById('btn-challenge').disabled = false;
+        document.getElementById('card-title').innerText = `SẴN SÀNG KHU VỰC TIẾP THEO`;
+        document.getElementById('card-body').innerText = `Bấm nút "1. Rút Thử Thách (🔴)" để bắt đầu giải mã khu vực ${roundList[currentZoneIndex].topic}!`;
+        document.getElementById('card-answers').innerHTML = "";
+        resetTimerForZone();
+        log(`👉 Đã chuyển sang Khu vực ${currentZoneIndex + 1}/4.`);
+      } else {
+        log(`🏆 CHIẾN THẮNG! Bạn đã giải mã toàn bộ bàn cờ Autophagy!`);
+        alert("Chúc mừng! Bạn đã hoàn thành xuất sắc toàn bộ trò chơi!");
+      }
+    }
+
+    function updateDebuffUI() {
+      const container = document.getElementById('debuff-container');
+      let html = "";
+      if (energyCardBlocked) {
+        html += `<span class="status-badge badge-warning" style="margin-right:4px;">⚠️ Bị mất 1 Thẻ Năng Lượng</span>`;
+      }
+      if (eyeEnzymeActive) {
+        html += `<span class="status-badge badge-info" style="margin-right:4px;">👁️ Đã loại 1 đáp án sai</span>`;
+      }
+      if (chatEnzymeActive) {
+        html += `<span class="status-badge badge-info">💬 Chuyển sang Chia sẻ cá nhân</span>`;
+      }
+      container.innerHTML = html;
+    }
+
+    // LẬT ENZYME & LOẠI BỎ LÁ BÀI KHỎI BỘ BÀI
+    function revealEnzyme() {
+      if (enzymeDeck.length === 0) {
+        alert("⚠️ Tất cả các thẻ Enzyme trong bộ bài đã được sử dụng hết!");
+        return;
+      }
+
+      document.getElementById('btn-enzyme').disabled = true;
+
+      // Rút ngẫu nhiên 1 lá bài từ bộ bài hiện tại
+      const randomIndex = Math.floor(Math.random() * enzymeDeck.length);
+      const pick = enzymeDeck[randomIndex];
+
+      // LOẠI BỎ LÁ BÀI ĐÃ RÚT KHỎI BỘ BÀI
+      enzymeDeck.splice(randomIndex, 1);
+
+      // Áp dụng hiệu ứng
+      if (pick.id === "eye") {
+        timeLeft = Math.max(1, timeLeft - 30);
+        eyeEnzymeActive = true;
+        log(`👁️ Rút Enzyme Con mắt (Còn lại ${enzymeDeck.length} lá): Trừ 30s & loại 1 đáp án sai!`);
+      } else if (pick.id === "cards") {
+        energyCardBlocked = true;
+        log(`🎴 Rút Enzyme Hai chiếc thẻ (Còn lại ${enzymeDeck.length} lá): Mất 1 lá Năng Lượng lượt gieo kế!`);
+      } else if (pick.id === "chat") {
+        chatEnzymeActive = true;
+        log(`💬 Rút Enzyme Bóng trò chuyện (Còn lại ${enzymeDeck.length} lá): Chuyển thành câu hỏi chia sẻ cá nhân!`);
+      } else if (pick.id === "bell") {
+        log(`🔔 Rút Enzyme Chuông báo (Còn lại ${enzymeDeck.length} lá): Hoàn thành lượt chơi trong 1 phút!`);
+      }
+
+      updateDebuffUI();
+
+      alert(`🔵 BẠN RÚT ĐƯỢC ENZYME: ${pick.t}\n\nNội dung: ${pick.m}\n\n(Thẻ này đã được loại khỏi ván cờ. Còn lại ${enzymeDeck.length} thẻ Enzyme trong xấp)`);
+
+      // Cập nhật lại câu hỏi/giao diện theo hiệu ứng mới
+      if (roundData) {
+        showQuestion();
+      }
+    }
+  </script>
+</body>
+</html>
